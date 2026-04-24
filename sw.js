@@ -2,11 +2,11 @@
 
 const CACHE_NAME = "monea-v1";
 const ASSETS = [
-  "/",
-  "/terminal.html",
-  "/CSS/styles.css",
-  "/JS/terminal.js",
-  "/IMAGES/Logo2.png",
+  "./",
+  "./terminal.html",
+  "./CSS/styles.css",
+  "./JS/terminal.js",
+  "./IMAGES/Logo2.png",
 ];
 
 self.addEventListener("install", (e) => {
@@ -27,8 +27,8 @@ self.addEventListener("push", function (event) {
   }
   const options = {
     body: data.body || "Nova notificação",
-    icon: "/IMAGES/Logo2.png",
-    badge: "/IMAGES/Logo2.png",
+    icon: "./IMAGES/Logo2.png",
+    badge: "./IMAGES/Logo2.png",
     vibrate: [200, 100, 200], // Faz o celular vibrar
     data: { url: data.url },
     actions: [{ action: "open", title: "Ver no Terminal" }],
@@ -42,14 +42,14 @@ self.addEventListener("push", function (event) {
 self.addEventListener("notificationclick", function (event) {
   event.notification.close();
 
-  const url = event.notification.data?.url || "/terminal.html";
+  const url = event.notification.data?.url || "./terminal.html";
 
   event.waitUntil(
     clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientsArr) => {
         for (const client of clientsArr) {
-          if (client.url.includes("/terminal.html") && "focus" in client) {
+          if (client.url.includes("./terminal.html") && "focus" in client) {
             return client.focus();
           }
         }

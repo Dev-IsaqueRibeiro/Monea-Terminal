@@ -507,7 +507,7 @@ function init() {
   // LOGICA DE INSTALAÇÃO PWA
   // A. Registrar o Service Worker
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js");
+    navigator.serviceWorker.register("./sw.js");
   }
 
   // B. Escutar o evento do navegador perguntando se pode instalar
