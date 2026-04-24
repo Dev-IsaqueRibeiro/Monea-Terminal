@@ -37,8 +37,8 @@ let alerts = [];
 let triggeredAlerts = new Set(); // 🔒 trava anti-duplicação
 
 let chart = null;
-const audioCompra = new Audio("/SOUNDS/compra.mp3");
-const audioVenda = new Audio("/SOUNDS/venda.mp3");
+const audioCompra = new Audio("SOUNDS/compra.mp3");
+const audioVenda = new Audio("SOUNDS/venda.mp3");
 audioCompra.loop = true;
 audioVenda.loop = true;
 
@@ -280,7 +280,7 @@ async function sendPushNotification(alert) {
               ? "📉 Oportunidade de Compra!"
               : "📈 Hora de Vender!",
           body: `O ${alert.ativo} atingiu R$ ${alert.precoAlvo.toFixed(3)}`,
-          url: "/terminal.html",
+          url: "./terminal.html",
         }),
       },
     );
@@ -332,7 +332,7 @@ function triggerAlarm(alert) {
 
     subtitulo.innerHTML = `O ${moedaNegrito} caiu para ${valorColorido}.<br><span style="font-size: 0.85rem; color: #171717;">⏰ Disparado às: ${horaDisparo}</span>`;
 
-    audioCompra.play();
+    audioCompra.play().catch(() => {});
     document.body.classList.add("bg-buy-flash");
   } else {
     titulo.innerText = "HORA DE REALIZAR LUCRO!";
@@ -379,6 +379,29 @@ function init() {
   renderTabs();
   fetchData();
   updateChartData();
+
+  // 🔊 LIBERA ÁUDIO NO MOBILE (CORRETO)
+  document.addEventListener(
+    "click",
+    () => {
+      audioCompra
+        .play()
+        .then(() => {
+          audioCompra.pause();
+          audioCompra.currentTime = 0;
+        })
+        .catch(() => {});
+
+      audioVenda
+        .play()
+        .then(() => {
+          audioVenda.pause();
+          audioVenda.currentTime = 0;
+        })
+        .catch(() => {});
+    },
+    { once: true },
+  );
 
   // APLICANDO MÁSCARA NOS INPUTS
   applyInputMask(inputCompra);
