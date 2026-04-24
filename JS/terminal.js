@@ -110,7 +110,6 @@ async function fetchData() {
       priceDisplay.innerText = `R$ ${currentPrice.toFixed(3)}`;
       // Verifica apenas alertas no loop de 2s. O gráfico fica de fora.
       checkAlerts();
-
       updateChartData(); // 🔥 SINCRONIZA EM TEMPO REAL
     }
   } catch (e) {
