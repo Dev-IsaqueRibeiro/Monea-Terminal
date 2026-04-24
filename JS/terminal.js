@@ -44,6 +44,7 @@ audioVenda.loop = true;
 
 let deferredPrompt;
 let isReady = false; // TRAVA DE SEGURANÇA
+let animationFrameId = null;
 
 const installBtn = document.getElementById("installApp");
 
@@ -109,6 +110,8 @@ async function fetchData() {
       priceDisplay.innerText = `R$ ${currentPrice.toFixed(3)}`;
       // Verifica apenas alertas no loop de 2s. O gráfico fica de fora.
       checkAlerts();
+
+      updateChartData(); // 🔥 SINCRONIZA EM TEMPO REAL
     }
   } catch (e) {
     console.error("Erro ao buscar cotação");
@@ -156,78 +159,101 @@ function renderTabs() {
 
 async function updateChartData() {
   try {
-    // Busca a quantidade de dias selecionada no HTML
     const days = document.getElementById("selectDays")?.value || "30";
 
     const res = await fetch(
       `https://economia.awesomeapi.com.br/json/daily/${selectedAsset.pair}/${days}`,
     );
+
     const data = await res.json();
     const history = data.reverse();
-    const ctx = document.getElementById("historyChart").getContext("2d");
 
-    if (chart) chart.destroy();
+    const canvas = document.getElementById("historyChart");
+    if (!canvas) return;
 
-    chart = new window.Chart(ctx, {
-      type: "line",
-      data: {
-        labels: history.map((item) => {
-          const date = new Date(item.timestamp * 1000);
-          return date.toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "2-digit",
-          });
-        }),
-        datasets: [
-          {
-            data: history.map((item) => Number(item.bid)),
-            borderColor: "#0a2540",
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true,
-            backgroundColor: "rgba(10, 37, 64, 0.05)",
-            pointRadius: 4,
-            pointBackgroundColor: "#3d0c7c", // Roxo Monea
-            pointBorderColor: "#ffffff",
-            pointHoverRadius: 7,
-            pointHoverBackgroundColor: "#2ccc00", // Verde no Hover
+    const ctx = canvas.getContext("2d");
+
+    // 🔥 PREPARA DADOS
+    const prices = history.map((item) => Number(item.bid));
+    const labels = history.map((item) => {
+      const date = new Date(item.timestamp * 1000);
+      return date.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+      });
+    });
+
+    // 🔥 ÚLTIMO PONTO = PREÇO ATUAL
+    if (prices.length > 0 && currentPrice > 0) {
+      prices[prices.length - 1] = currentPrice;
+      labels[labels.length - 1] = "Agora";
+    }
+
+    // 🔥 SE NÃO EXISTE GRÁFICO → CRIA
+    if (!chart) {
+      chart = new window.Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              data: prices,
+              borderColor: "#0a2540",
+              borderWidth: 2,
+              tension: 0.3,
+              fill: true,
+              backgroundColor: "rgba(10, 37, 64, 0.05)",
+              pointRadius: 4,
+              pointBackgroundColor: "#3d0c7c",
+              pointBorderColor: "#ffffff",
+              pointHoverRadius: 7,
+              pointHoverBackgroundColor: "#2ccc00",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false, // 🔥 remove lag
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              backgroundColor: "#f5f5f5",
+              titleColor: "#0c377c",
+              bodyColor: "#3d0c7c",
+              padding: 12,
+              cornerRadius: 12,
+              displayColors: false,
+              borderColor: "#3d0c7c",
+              borderWidth: 1.5,
+              callbacks: {
+                label: (context) => ` Preço: R$ ${context.parsed.y.toFixed(3)}`,
+              },
+            },
           },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            enabled: true,
-            backgroundColor: "#f5f5f5",
-            titleColor: "#0c377c",
-            bodyColor: "#3d0c7c",
-            padding: 12,
-            cornerRadius: 12, // Bordas mais arredondadas
-            displayColors: false,
-            // Efeito de Sombra no Retângulo (Tooltip)
-            borderColor: "#3d0c7c",
-            borderWidth: 1.5,
-            callbacks: {
-              label: (context) => ` Preço: R$ ${context.parsed.y.toFixed(3)}`,
+          scales: {
+            x: { display: false },
+            y: {
+              display: true,
+              ticks: { font: { size: 10 }, color: "#94a3b8" },
+              grid: { color: "#f1f5f9" },
             },
           },
         },
-        scales: {
-          x: { display: false },
-          y: {
-            display: true,
-            ticks: { font: { size: 10 }, color: "#94a3b8" },
-            grid: { color: "#f1f5f9" },
-          },
-        },
-      },
-    });
+      });
+
+      return;
+    }
+
+    // 🔥 ATUALIZA SEM RECRIAR (MUITO MAIS RÁPIDO)
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = prices;
+
+    chart.update("none"); // 🔥 update leve (sem animação)
   } catch (e) {
-    console.error("Erro ao carregar histórico");
+    console.error("Erro ao carregar histórico", e);
   }
 }
 
@@ -378,7 +404,6 @@ function init() {
   assetNameDisplay.innerText = `${selectedAsset.name} Agora`;
   renderTabs();
   fetchData();
-  updateChartData();
 
   // 🔊 LIBERA ÁUDIO NO MOBILE (CORRETO)
   document.addEventListener(
