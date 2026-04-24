@@ -1,0 +1,21 @@
+{
+  "name": "Monea Terminal",
+  "short_name": "Monea",
+  "description": "Conversor e Monitoramento de Moedas",
+  "start_url": "/terminal.html",
+  "display": "standalone",
+  "background_color": "#0a2540",
+  "theme_color": "#0a2540",
+  "icons": [
+    {
+      "src": "IMAGES/Logo2.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "IMAGES/Logo2.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monea - Criar Conta</title>
+    <link rel="stylesheet" href="CSS/styles.css" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-container">
+      <div class="auth-card">
+        <header class="auth-header">
+          <img src="IMAGES/Logo2.png" id="authLogo" alt="Monea" />
+          <h1>Criar nova conta</h1>
+        </header>
+
+        <form id="formCadastro">
+          <div class="field">
+            <input
+              type="text"
+              id="nomeCadastro"
+              placeholder="Seu nome completo"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <div class="input-with-status">
+              <input
+                type="text"
+                id="apelidoCadastro"
+                placeholder="Como quer ser chamado?"
+                required
+              />
+              <span id="statusApelido"></span>
+            </div>
+            <small id="sugestaoApelido" class="hidden"></small>
+          </div>
+
+          <div class="field">
+            <input
+              type="email"
+              id="emailCadastro"
+              placeholder="Seu melhor e-mail"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <input
+              type="tel"
+              id="phone"
+              placeholder="(47) 9 9999-9999"
+              required
+            />
+          </div>
+
+          <div class="field password-field">
+            <input
+              type="password"
+              id="senhaCadastro"
+              placeholder="Escolha uma senha"
+              required
+            />
+            <button type="button" class="icon-btn">🔒</button>
+          </div>
+
+          <div class="field password-field">
+            <input
+              type="password"
+              id="confirmarSenha"
+              placeholder="Confirme sua senha"
+              required
+            />
+            <button type="button" class="icon-btn">🔒</button>
+          </div>
+
+          <button type="submit" id="btnSubmit">Criar Agora</button>
+        </form>
+
+        <footer class="auth-footer">
+          Não tem conta? <a href="index.html">Entrar</a>
+        </footer>
+      </div>
+
+      <div id="modalSucesso" class="success-modal-overlay hidden">
+        <div class="success-modal-content">
+          <img
+            src="images/Logo2.png"
+            alt="Monea Logo"
+            class="success-modal-logo"
+          />
+          <h3>Conta criada com sucesso!</h3>
+          <p>Bem-vindo ao Monea Terminal. Você já pode acessar sua conta.</p>
+          <button id="btnFecharModal" class="btn-success-modal">
+            Fazer Login
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- MODAL GERAL -->
+    <div id="moneaAlertModal" class="monea-modal-overlay hidden">
+      <div class="monea-modal-card">
+        <img src="IMAGES/Logo2.png" class="modal-logo" alt="Monea" />
+        <h3 id="moneaTitle" class="monea-alert-title">Título</h3>
+        <p id="moneaMsg" class="monea-alert-msg">Mensagem aqui</p>
+        <button id="moneaBtnClose" class="btn-stop">Entendido</button>
+      </div>
+    </div>
+
+    <script type="module" src="JS/auth.js"></script>
+  </body>
+</html>
+
+<!-- CONTINUAR DAQUI -->
+<!-- Conta Primária - Gemini
+ → 🧠 O QUE É ESSE code50/195512836? ► E Depois VOLTAR em 🥇 OPÇÃO 1 — GitHub Pages (RECOMENDADO) 🔥 PASSO A PASSO
+ 0 - Disparar uma Mensagem com Link do APP no WhatsApp para que, ao clicar no link, o app seja aberto e o Alerta Dispare.
+1 - Corrigir a Landing Page - DevClub
+2 - Inserir os Anúncios e Corrigir o Link do Anúncio DevClub no JáMercado
+3 - Criar e inserir o Logo de Navegação do Monea Terminal
+4 - Postar o Conversor no DevClub e LinkedIn
+
+ -->

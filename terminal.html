@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monea Terminal - Live Analysis</title>
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0a2540" />
+  </head>
+  <body class="terminal-body">
+    <div id="alertPopup" class="modal-overlay hidden">
+      <div class="modal-content">
+        <img src="images/Logo2.png" alt="Monea" class="modal-logo" />
+        <h2 id="alertTitle" class="alert-title"></h2>
+        <p id="alertName" class="alert-subtitle"></p>
+        <button id="btnStopSiren" class="btn-stop">Desligar Alarme</button>
+      </div>
+    </div>
+
+    <header class="page-header">
+      <div class="header-container">
+        <div class="brand-group">
+          <img src="images/Logo.png" alt="Monea" class="brand-logo" />
+        </div>
+
+        <div class="user-actions-group">
+          <span id="userNameDisplay" class="user-name-text"
+            >| Carregando...</span
+          >
+
+          <a href="perfil.html" class="settings-btn" title="Configurações"
+            >⚙️</a
+          >
+
+          <button
+            id="btnLogout"
+            class="btn-logout"
+            title="Sair"
+            style="display: none"
+          >
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <nav id="assetTabs" class="asset-tabs"></nav>
+
+      <div class="dashboard-grid">
+        <section class="card price-card">
+          <p id="selectedAssetName" class="asset-label">---</p>
+          <div class="price-wrapper">
+            <div class="main-price-container">
+              <h2 id="currentPriceDisplay" class="main-price">R$ 0,000</h2>
+            </div>
+
+            <div class="coin-container">
+              <img src="images/monea-coin.png" class="coin-icon" alt="Coin" />
+            </div>
+          </div>
+          <div class="live-status-internal">
+            <div class="status-dot"></div>
+            <span class="status-text">Live Analysis</span>
+          </div>
+        </section>
+
+        <section class="alerts-column">
+          <div class="alert-box buy-border">
+            <label class="label-buy">Alerta de Baixa ↑ (Compra)</label>
+            <div class="input-group">
+              <input id="inputCompra" type="text" placeholder="0.000" />
+              <button id="btnAlertCompra" class="btn-buy">Definir</button>
+            </div>
+          </div>
+
+          <div class="alert-box sell-border">
+            <label class="label-sell">Alerta de Alta ↓ (Venda)</label>
+            <div class="input-group">
+              <input id="inputVenda" type="text" placeholder="0.000" />
+              <button id="btnAlertVenda" class="btn-sell">Definir</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="card wise-card">
+        <div class="banner-wise">
+          <a
+            href="https://wise.com/invite/arhc/isaqued48?utm_source=android-referral-hub-copylink&utm_medium=invite&utm_campaign=&utm_content=&referralCode=isaqued48"
+            class="cta-wiseLink"
+            target="_blank"
+          >
+            <img src="images/cartao-wise.png" class="wise-logo" alt="Wise Logo"
+          /></a>
+          <!-- Headline -->
+          <h3>Euro, Dolar ou outras moedas com Taxa Zero?</h3>
+
+          <!-- Subtexto -->
+          <p class="subtext">
+            É isso mesmo! Criando a sua <strong>Conta Wise</strong> através do
+            nosso link, você não paga nada (<strong>TAXA ZERO</strong>) em sua
+            Primeira Tranferência! <br />
+            Câmbio real, sem surpresas de taxas embutidas? Vem para a Wise!.<br />
+            Ideal para freelancers, quem recebe em moeda estrangeira e quem
+            pretende juntar Euros para se mudar para a Europa.
+          </p>
+
+          <!-- Benefícios -->
+          <div class="beneficios">
+            <img src="/IMAGES/Wise_Logo.png" alt="Wise" class="Wise_Logo" />
+            <ul class="benefits">
+              <li>
+                <span>✔</span> <strong>Conta internacional gratuita</strong>
+              </li>
+              <li><span>✔</span> <strong>Receba em dólar e euro</strong></li>
+              <li><span>✔</span> <strong>Taxas mais baixas</strong></li>
+            </ul>
+          </div>
+
+          <!-- Botão -->
+          <a
+            href="https://wise.com/invite/arhc/isaqued48?utm_source=android-referral-hub-copylink&utm_medium=invite&utm_campaign=&utm_content=&referralCode=isaqued48"
+            class="cta-wiseButton"
+            target="_blank"
+          >
+            <span><img src="/IMAGES/flag-wise.png" alt="" /></span> Abrir conta
+            grátis
+          </a>
+        </div>
+      </aside>
+
+      <section class="card chart-container">
+        <div class="chart-header">
+          <h3 class="section-title">Performance Histórica</h3>
+          <select id="selectDays" class="select-days">
+            <option value="7">7 Dias</option>
+            <option value="15">15 Dias</option>
+            <option value="30" selected>30 Dias</option>
+            <option value="90">90 Dias</option>
+            <option value="120">120 Dias</option>
+            <option value="180">180 Dias</option>
+            <option value="365">1 ano</option>
+          </select>
+        </div>
+        <canvas id="historyChart"></canvas>
+      </section>
+
+      <section class="card monitor-section">
+        <h3 class="section-title">Central de Monitoramento</h3>
+        <div class="table-scroll">
+          <table class="monitor-table">
+            <thead>
+              <tr>
+                <th>Ativo</th>
+                <th>Tipo</th>
+                <th>Alvo</th>
+                <th>Status</th>
+                <th class="text-right">Data/Hora</th>
+              </tr>
+            </thead>
+            <tbody id="alertsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- BLOCO DE PROPAGANDA QUARKZETTA -->
+      <div class="tech-container">
+        <div class="relative">
+          <!-- Bolinhas -->
+          <div class="data-bit bit-green"></div>
+          <div class="data-bit bit-yellow"></div>
+          <div class="data-bit bit-blue"></div>
+          <div class="data-bit bit-white"></div>
+          <div class="data-bit bit-black"></div>
+          <div class="data-bit bit-orange"></div>
+
+          <!-- Imagens -->
+          <div class="items-center">
+            <img
+              src="/images/Logo-QuarkZetta.png"
+              alt="Logo"
+              class="logoQuark"
+            />
+            <img
+              src="/images/Nome-QuarkZetta.png"
+              alt="Nome"
+              class="logoQuarkName"
+            />
+          </div>
+        </div>
+      </div>
+      <!-- FIM DO BLOCO DE PROPAGANDA QUARKZETTA -->
+
+      <section class="card converter-section">
+        <h3 class="section-title">Conversor Direto</h3>
+        <div class="converter-inputs">
+          <div class="conv-field">
+            <span>BRL</span>
+            <input id="convBRL" type="text" placeholder="0.000" />
+          </div>
+          <div class="conv-field">
+            <span id="convLabel">EUR</span>
+            <input id="convForeign" type="text" placeholder="0.000" />
+          </div>
+        </div>
+      </section>
+
+      <!-- ANÚNCIO FINAL ANTES DO FOOTER  -->
+      <!-- <div class="ads-container">
+        <ins
+          class="adsbygoogle"
+          style="display: block; width: 100%"
+          data-ad-client="ca-pub-XXX"
+          data-ad-slot="XXX"
+          data-ad-format="auto"
+        ></ins>
+      </div> -->
+
+      <!-- ANÚNCIO DEVCLUB -->
+      <div class="ad-affiliate-container-devclub">
+        <a
+          href="https://landing-page-dev-club.vercel.app/"
+          target="_blank"
+          rel="nofollow noreferrer"
+          class="ad-card"
+        >
+          <img
+            src="./IMAGES/DevClub-curso.png"
+            alt="DevClub"
+            class="ad-image-devclub"
+          />
+          <div class="ad-content-devclub">
+            <div class="ad-title-devclub">💻 Aprenda a Programar! 💻</div>
+            <p class="ad-text">
+              Estude na a Melhor Escola de Programação do Brasil e Torne-se o(a)
+              Programador(a) FullStack que o Mercado Precisa!
+            </p>
+            <span class="ad-button-devclub"
+              ><strong id="dev">&lt Saiba</strong
+              ><strong id="club"> Mais &gt</strong>
+            </span>
+          </div>
+        </a>
+      </div>
+      <!-- FIM DO → ANÚNCIO DEVCLUB -->
+
+      <!-- ANÚNCIO VIVER NA ESPANHA - EBOOK -->
+      <div class="ad-affiliate-container-ebookVNE">
+        <a
+          href="https://pay.kiwify.com.br/a4FpVll"
+          target="_blank"
+          rel="nofollow noreferrer"
+          class="ad-card-ebookVNE"
+        >
+          <img
+            src="./IMAGES/Capa-Ebook.png"
+            alt="Marmitas Fitness"
+            class="ad-image-ebookVNE"
+          />
+          <div class="ad-content-ebookVNE">
+            <div class="ad-title-ebookVNE">🛫 Viver na Espanha! 🛬</div>
+            <p class="ad-text">
+              Descubra como se mudar para a Espanha e Viver de forma 100% Legal
+              e Segura em Terras Hispânicas!
+            </p>
+            <span class="ad-button-ebookVNE">✈️ Saiba Mais 🛩️</span>
+          </div>
+        </a>
+      </div>
+      <!-- FIM DO → ANÚNCIO VIVER NA ESPANHA - EBOOK -->
+
+      <footer class="main-footer">
+        <div class="footer-content">
+          <h2 class="footer-logo-text">MONEA TERMINAL</h2>
+          <p class="footer-credits">
+            © 2026 QUARKZETTA | ENGINEERED BY ISAQUE RIBEIRO
+          </p>
+        </div>
+      </footer>
+
+      <div class="fixed-container left">
+        <a
+          href="javascript:void(0)"
+          id="installApp"
+          rel="noopener noreferrer"
+          class="btn-glass btn-shine"
+        >
+          <div class="logo-circle">
+            <img src="/images/Logo2.png" alt="Monea Logo" />
+          </div>
+          <span class="btn-label">Instalar App</span>
+        </a>
+      </div>
+
+      <div class="fixed-container right">
+        <a
+          id="btnWhatsapp"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-whatsapp"
+          title="Fale Conosco"
+        >
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
+            alt="WhatsApp"
+          />
+        </a>
+      </div>
+    </main>
+
+    <!-- MODAL GERAL -->
+    <div id="moneaAlertModal" class="monea-modal-overlay hidden">
+      <div class="monea-modal-card">
+        <img src="IMAGES/Logo2.png" class="modal-logo" alt="Monea" />
+        <h3 id="moneaTitle" class="monea-alert-title">Título</h3>
+        <p id="moneaMsg" class="monea-alert-msg">Mensagem aqui</p>
+        <button id="moneaBtnClose" class="btn-stop">Entendido</button>
+      </div>
+    </div>
+
+    <script type="module" src="js/terminal.js"></script>
+  </body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monea - Meu Perfil</title>
+    <link rel="stylesheet" href="CSS/styles.css" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-container">
+      <div class="auth-card">
+        <header class="auth-header">
+          <img src="IMAGES/Logo2.png" id="authLogo" alt="Monea" />
+          <h1>Gerenciar Meu Perfil</h1>
+        </header>
+
+        <form id="formPerfil">
+          <div class="field">
+            <label class="field-alter" for="nomePerfil"
+              ><span>Alterar:</span> Nome Completo</label
+            >
+            <input
+              type="text"
+              id="nomePerfil"
+              placeholder="Seu nome completo"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label class="field-alter" for="apelidoPerfil"
+              ><span>Alterar:</span> Como quer ser chamado?</label
+            >
+            <input
+              type="text"
+              id="apelidoPerfil"
+              placeholder="Ex: Isaque Dev"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label class="field-alter" for="emailPerfil"
+              ><span>Alterar:</span> E-mail</label
+            >
+            <input
+              type="email"
+              id="emailPerfil"
+              placeholder="Seu melhor e-mail"
+              required
+              disabled
+            />
+          </div>
+
+          <div class="field">
+            <label class="field-alter" for="phonePerfil"
+              ><span>Alterar:</span> Telefone para Alarmes</label
+            >
+            <input
+              type="tel"
+              id="phonePerfil"
+              placeholder="(47) 9 9999-9999"
+              required
+            />
+          </div>
+
+          <button
+            type="button"
+            id="btnVoltar"
+            onclick="window.location.href = 'terminal.html'"
+          >
+            Voltar
+          </button>
+
+          <button type="submit" id="btnSalvar">Salvar Alterações</button>
+        </form>
+
+        <footer class="auth-footer" style="margin-top: 20px">
+          Monea Terminal &copy; 2026
+        </footer>
+      </div>
+    </main>
+
+    <!-- MODAL GERAL -->
+    <div id="moneaAlertModal" class="monea-modal-overlay hidden">
+      <div class="monea-modal-card">
+        <img src="IMAGES/Logo2.png" class="modal-logo" alt="Monea" />
+        <h3 id="moneaTitle" class="monea-alert-title">Título</h3>
+        <p id="moneaMsg" class="monea-alert-msg">Mensagem aqui</p>
+        <button id="moneaBtnClose" class="btn-stop">Entendido</button>
+      </div>
+    </div>
+
+    <script type="module" src="JS/auth.js"></script>
+    <script type="module">
+      import { supabase } from "./JS/supabase-config.js";
+
+      const carregarDados = async () => {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (error) {
+          console.error("Erro ao buscar usuário:", error);
+          return;
+        }
+
+        if (user) {
+          // Preenche o e-mail (campo desabilitado)
+          document.getElementById("emailPerfil").value = user.email || "";
+
+          // Preenche o Telefone (buscando do campo 'phone' oficial do Supabase)
+          document.getElementById("phonePerfil").value = user.phone || "";
+
+          // Preenche os metadados (conforme salvos no register.html)
+          if (user.user_metadata) {
+            document.getElementById("nomePerfil").value =
+              user.user_metadata.full_name || "";
+            document.getElementById("apelidoPerfil").value =
+              user.user_metadata.display_name || "";
+          }
+        }
+      };
+      carregarDados();
+    </script>
+  </body>
+</html>
