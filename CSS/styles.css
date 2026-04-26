@@ -534,6 +534,25 @@ input,
   }
 }
 
+@media (max-width: 480px) {
+  /* Altera o container principal dos campos para coluna */
+  .converter-inputs {
+    flex-direction: column !important;
+    gap: 15px; /* Adiciona um espaço entre os campos quando empilhados */
+  }
+
+  /* Garante que cada campo ocupe 100% da largura disponível */
+  .conv-field {
+    width: 100% !important;
+  }
+
+  /* Opcional: Garante que o input dentro do campo também ocupe o espaço total */
+  .conv-field input {
+    width: 100%;
+    box-sizing: border-box; /* Garante que padding não quebre a largura */
+  }
+}
+
 @media (max-width: 430px) {
   .ads-container {
     flex-direction: column;
