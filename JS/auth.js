@@ -306,15 +306,18 @@ if (registerForm) {
       btnSubmit.innerText = "Criando conta...";
     }
 
-    const { error } = await supabase.auth.signUp({
+    const nomeCompleto = document.getElementById("nomeCadastro").value.trim();
+
+    const { data, error } = await supabase.auth.signUp({
       email: emailValue,
       password: senhaValue,
       options: {
         data: {
           display_name: apelidoValue,
-          phone: telefoneLimpo, // Campo padrão
-          full_phone: telefoneLimpo, // Campo de segurança (garante o salvamento)
-          whatsapp: telefoneLimpo, // Útil para seus futuros disparos
+          full_name: nomeCompleto, // ✅ ADICIONADO
+          phone: telefoneLimpo,
+          full_phone: telefoneLimpo,
+          whatsapp: telefoneLimpo,
           email_confirm_sent: true,
         },
       },
@@ -327,7 +330,19 @@ if (registerForm) {
         btnSubmit.innerText = "Criar Agora";
       }
     } else {
-      // MENSAGEM PROFISSIONAL SOBRE O EMAIL DO SUPABASE
+      // ✅ NOVO BLOCO (SALVAR NA TABELA profiles)
+      if (data?.user?.id) {
+        await supabase.from("profiles").insert([
+          {
+            id: data.user.id,
+            full_name: nomeCompleto,
+            display_name: apelidoValue,
+            email: emailValue,
+            phone: telefoneLimpo,
+          },
+        ]);
+      }
+
       mostrarMensagem("Sucesso", "Signup success", "sucesso");
 
       if (btnSubmit) {

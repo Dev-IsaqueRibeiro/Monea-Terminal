@@ -94,6 +94,7 @@
     <script type="module" src="JS/auth.js"></script>
     <script type="module">
       import { supabase } from "./JS/supabase-config.js";
+      import { mostrarMensagem } from "./JS/auth.js";
 
       const carregarDados = async () => {
         const {
@@ -107,22 +108,75 @@
         }
 
         if (user) {
-          // Preenche o e-mail (campo desabilitado)
-          document.getElementById("emailPerfil").value = user.email || "";
+          const { data: perfil, error: erroPerfil } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
 
-          // Preenche o Telefone (buscando do campo 'phone' oficial do Supabase)
-          document.getElementById("phonePerfil").value = user.phone || "";
-
-          // Preenche os metadados (conforme salvos no register.html)
-          if (user.user_metadata) {
-            document.getElementById("nomePerfil").value =
-              user.user_metadata.full_name || "";
-            document.getElementById("apelidoPerfil").value =
-              user.user_metadata.display_name || "";
+          if (erroPerfil) {
+            console.error("Erro ao buscar perfil:", erroPerfil);
+            return;
           }
+
+          document.getElementById("emailPerfil").value =
+            perfil?.email || user.email || "";
+
+          document.getElementById("phonePerfil").value =
+            perfil?.phone || user.user_metadata?.phone || "";
+
+          document.getElementById("nomePerfil").value =
+            perfil?.full_name || user.user_metadata?.full_name || "";
+
+          document.getElementById("apelidoPerfil").value =
+            perfil?.display_name || user.user_metadata?.display_name || "";
         }
       };
       carregarDados();
+
+      document
+        .getElementById("formPerfil")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          const nome = document.getElementById("nomePerfil").value;
+          const apelido = document.getElementById("apelidoPerfil").value;
+          const telefone = document.getElementById("phonePerfil").value;
+
+          // ✅ 1. Atualiza tabela profiles
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              full_name: nome,
+              nickname: apelido,
+              phone: telefone,
+            })
+            .eq("id", user.id);
+
+          if (error) {
+            mostrarMensagem("Erro", error.message, "erro");
+            console.error(error);
+            return;
+          }
+
+          await supabase.auth.updateUser({
+            data: {
+              full_name: nome,
+              display_name: apelido,
+              phone: telefone,
+            },
+          });
+
+          mostrarMensagem(
+            "Sucesso",
+            "Alterações salvas com sucesso!",
+            "sucesso",
+          );
+        });
     </script>
   </body>
 </html>
