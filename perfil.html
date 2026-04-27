@@ -152,7 +152,7 @@
             .from("profiles")
             .update({
               full_name: nome,
-              nickname: apelido,
+              display_name: apelido,
               phone: telefone,
             })
             .eq("id", user.id);
