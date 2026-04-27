@@ -312,6 +312,7 @@ if (registerForm) {
       email: emailValue,
       password: senhaValue,
       options: {
+        emailRedirectTo: window.location.origin,
         data: {
           display_name: apelidoValue,
           full_name: nomeCompleto, // ✅ ADICIONADO
