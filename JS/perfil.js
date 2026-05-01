@@ -48,16 +48,14 @@ carregarDados();
 // ==========================
 // 🔴 LOGOUT (BOTÃO SEPARADO)
 // ==========================
-document.addEventListener("DOMContentLoaded", () => {
-  const btnLogout = document.getElementById("btnLogoutConfig");
+const btnLogout = document.getElementById("btnLogoutConfig");
 
-  if (btnLogout) {
-    btnLogout.addEventListener("click", async () => {
-      await supabase.auth.signOut();
-      window.location.href = "index.html";
-    });
-  }
-});
+if (btnLogout) {
+  btnLogout.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "index.html";
+  });
+}
 
 // ==========================
 // 💾 SALVAR PERFIL
@@ -123,7 +121,7 @@ if (form) {
     // ====================================================
     // 📧 3. ALTERAÇÃO DE EMAIL (se mudou → logout)
     // ====================================================
-    if (email && email !== user.email) {
+    if (email !== user.email) {
       const { error: emailError } = await supabase.auth.updateUser({
         email: email,
       });

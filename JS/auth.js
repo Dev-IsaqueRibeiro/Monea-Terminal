@@ -2,26 +2,6 @@
 
 import { supabase, trackEvent } from "./supabase-config.js";
 
-// 🔥 TRATAMENTO SEGURO (APÓS CARREGAR TUDO)
-window.addEventListener("load", async () => {
-  const hash = window.location.hash;
-
-  if (hash && hash.includes("type=email_change")) {
-    const { data } = await supabase.auth.getSession();
-
-    if (data?.session) {
-      alert("E-mail alterado com sucesso!");
-
-      // limpa o hash da URL (evita repetir)
-      window.history.replaceState({}, document.title, window.location.pathname);
-
-      // 🔒 força login novamente com novo e-mail
-      await supabase.auth.signOut();
-      window.location.href = "index.html";
-    }
-  }
-});
-
 // --- TRADUTOR DE MENSAGENS (INCLUÍDO NO INÍCIO) ---
 const mensagensTraduzidas = {
   "New password should be different from the old password.":
@@ -249,28 +229,19 @@ if (phoneInput) {
 }
 
 // Revelar Senha (Global)
-document.addEventListener("click", handleTogglePass);
-document.addEventListener("touchstart", handleTogglePass);
-
-function handleTogglePass(e) {
+document.addEventListener("click", (e) => {
   if (
     e.target.classList.contains("icon-btn") ||
     e.target.id === "btnTogglePass"
   ) {
     e.preventDefault();
-
     const container = e.target.closest(".field");
-    if (!container) return;
-
     const input = container.querySelector("input");
-    if (!input) return;
-
     const isPass = input.type === "password";
-
     input.type = isPass ? "text" : "password";
     e.target.innerText = isPass ? "🔓" : "🔒";
   }
-}
+});
 
 // --- 5. LOGIN ---
 if (loginForm) {

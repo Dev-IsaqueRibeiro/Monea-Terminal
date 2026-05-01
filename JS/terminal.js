@@ -105,26 +105,16 @@ async function fetchData() {
     const res = await fetch(
       `https://economia.awesomeapi.com.br/json/last/${state.selectedAsset.pair}`,
     );
-
     const json = await res.json();
     const pairKey = state.selectedAsset.pair.replace("-", "");
-
     state.currentPrice = Number(json[pairKey].bid);
 
     if (priceDisplay) {
       priceDisplay.innerText = `R$ ${state.currentPrice.toFixed(3)}`;
+      // Verifica apenas alertas no loop de 2s. O gráfico fica de fora.
+      checkAlerts();
+      updateChartRealtime(); // 🔥 SINCRONIZA EM TEMPO REAL
     }
-
-    // 🔥 ALERTAS SEMPRE RODAM
-    checkAlerts();
-
-    // 🔥 CRIA O GRÁFICO UMA VEZ (SEM INTERROMPER O FLUXO)
-    if (!chart && state.currentPrice > 0) {
-      updateChartData(); // SEM await e SEM return
-    }
-
-    // 🔥 SEMPRE ATUALIZA EM TEMPO REAL
-    updateChartRealtime();
   } catch (e) {
     console.error("Erro ao buscar cotação", e);
   }
@@ -288,7 +278,7 @@ function checkAlerts() {
     if (alert.status !== "Ativo") return;
 
     // 🔒 Só moeda atual
-    if (alert.ativo?.trim().toUpperCase() !== state.selectedAsset.id) return;
+    if (alert.ativo !== state.selectedAsset.id) return;
 
     const price = Number(state.currentPrice.toFixed(3));
     const target = Number(alert.precoAlvo.toFixed(3));
@@ -431,21 +421,13 @@ if (btnLogout) {
 }
 
 // INICIALIZAÇÃO
-async function init() {
+function init() {
   trackEvent("app_open");
   if (assetNameDisplay) {
     assetNameDisplay.innerText = `${state.selectedAsset.name} Agora`;
   }
   renderTabs();
-
-  // 🔥 PRIMEIRO: carrega alertas
-  await fetchAlertsFromDatabase();
-
-  // 🔥 DEPOIS: busca preço
   fetchData();
-
-  // 🔁 LOOP CONTÍNUO (SE NÃO TIVER, ADICIONE)
-  setInterval(fetchData, 2000);
 
   // 🔊 LIBERA ÁUDIO NO MOBILE (CORRETO)
   document.addEventListener(
@@ -644,10 +626,10 @@ async function fetchAlertsFromDatabase() {
 
     renderAlertsTable();
 
-    // 🔥 Pequeno delay pra evitar bug de inicialização
+    // LIBERA A CHECAGEM DE ALARMES APÓS 1 SEGUNDO DO CARREGAMENTO
     setTimeout(() => {
       state.isReady = true;
-    }, 500);
+    }, 1000);
   }
 }
 
