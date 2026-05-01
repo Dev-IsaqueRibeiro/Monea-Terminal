@@ -2,27 +2,25 @@
 
 import { supabase, trackEvent } from "./supabase-config.js";
 
-// 🔥 TRATAMENTO DE LINKS DO SUPABASE (EMAIL CHANGE, RESET, ETC)
-const hash = window.location.hash;
+// 🔥 TRATAMENTO SEGURO (APÓS CARREGAR TUDO)
+window.addEventListener("load", async () => {
+  const hash = window.location.hash;
 
-if (hash && hash.includes("type=email_change")) {
-  (async () => {
-    const { data, error } = await supabase.auth.getSession();
+  if (hash && hash.includes("type=email_change")) {
+    const { data } = await supabase.auth.getSession();
 
-    if (error) {
-      alert("Erro ao confirmar alteração de e-mail");
-      return;
-    }
-
-    if (data.session) {
+    if (data?.session) {
       alert("E-mail alterado com sucesso!");
+
+      // limpa o hash da URL (evita repetir)
+      window.history.replaceState({}, document.title, window.location.pathname);
 
       // 🔒 força login novamente com novo e-mail
       await supabase.auth.signOut();
       window.location.href = "index.html";
     }
-  })();
-}
+  }
+});
 
 // --- TRADUTOR DE MENSAGENS (INCLUÍDO NO INÍCIO) ---
 const mensagensTraduzidas = {
@@ -251,19 +249,28 @@ if (phoneInput) {
 }
 
 // Revelar Senha (Global)
-document.addEventListener("click", (e) => {
+document.addEventListener("click", handleTogglePass);
+document.addEventListener("touchstart", handleTogglePass);
+
+function handleTogglePass(e) {
   if (
     e.target.classList.contains("icon-btn") ||
     e.target.id === "btnTogglePass"
   ) {
     e.preventDefault();
+
     const container = e.target.closest(".field");
+    if (!container) return;
+
     const input = container.querySelector("input");
+    if (!input) return;
+
     const isPass = input.type === "password";
+
     input.type = isPass ? "text" : "password";
     e.target.innerText = isPass ? "🔓" : "🔒";
   }
-});
+}
 
 // --- 5. LOGIN ---
 if (loginForm) {

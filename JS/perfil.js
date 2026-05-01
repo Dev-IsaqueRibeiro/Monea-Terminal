@@ -48,14 +48,16 @@ carregarDados();
 // ==========================
 // 🔴 LOGOUT (BOTÃO SEPARADO)
 // ==========================
-const btnLogout = document.getElementById("btnLogoutConfig");
+document.addEventListener("DOMContentLoaded", () => {
+  const btnLogout = document.getElementById("btnLogoutConfig");
 
-if (btnLogout) {
-  btnLogout.addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    window.location.href = "index.html";
-  });
-}
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    });
+  }
+});
 
 // ==========================
 // 💾 SALVAR PERFIL

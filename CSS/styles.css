@@ -1218,7 +1218,7 @@ input,
 }
 
 #historyChart {
-  max-height: 300px; /* Limita a altura do canvas para não vazar */
+  max-height: 300px !important; /* Limita a altura do canvas para não vazar */
   width: 100% !important;
   filter: drop-shadow(0 0 5px rgba(61, 12, 124, 0.2));
 }
