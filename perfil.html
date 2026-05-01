@@ -50,7 +50,6 @@
               id="emailPerfil"
               placeholder="Seu melhor e-mail"
               required
-              disabled
             />
           </div>
 
@@ -66,6 +65,14 @@
             />
           </div>
 
+          <div class="field">
+            <label class="field-alter"><span>Alterar:</span> Senha</label>
+            <input
+              type="password"
+              id="novaSenha"
+              placeholder="Nova senha (opcional)"
+            />
+          </div>
           <button
             type="button"
             id="btnVoltar"
@@ -73,8 +80,10 @@
           >
             Voltar
           </button>
-
           <button type="submit" id="btnSalvar">Salvar Alterações</button>
+          <button type="button" id="btnLogoutConfig" class="btn-danger">
+            Sair da Conta
+          </button>
         </form>
 
         <footer class="auth-footer" style="margin-top: 20px">
@@ -94,91 +103,7 @@
     </div>
 
     <script type="module" src="JS/auth.js"></script>
-    <script type="module">
-      import { supabase } from "./JS/supabase-config.js";
-      import { mostrarMensagem } from "./JS/auth.js";
-
-      const carregarDados = async () => {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-
-        if (error) {
-          console.error("Erro ao buscar usuário:", error);
-          return;
-        }
-
-        if (user) {
-          const { data: perfil, error: erroPerfil } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .single();
-
-          if (erroPerfil) {
-            console.error("Erro ao buscar perfil:", erroPerfil);
-            return;
-          }
-
-          document.getElementById("emailPerfil").value =
-            perfil?.email || user.email || "";
-
-          document.getElementById("phonePerfil").value =
-            perfil?.phone || user.user_metadata?.phone || "";
-
-          document.getElementById("nomePerfil").value =
-            perfil?.full_name || user.user_metadata?.full_name || "";
-
-          document.getElementById("apelidoPerfil").value =
-            perfil?.display_name || user.user_metadata?.display_name || "";
-        }
-      };
-      carregarDados();
-
-      document
-        .getElementById("formPerfil")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-
-          const nome = document.getElementById("nomePerfil").value;
-          const apelido = document.getElementById("apelidoPerfil").value;
-          const telefone = document.getElementById("phonePerfil").value;
-
-          // ✅ 1. Atualiza tabela profiles
-          const { error } = await supabase
-            .from("profiles")
-            .update({
-              full_name: nome,
-              display_name: apelido,
-              phone: telefone,
-            })
-            .eq("id", user.id);
-
-          if (error) {
-            mostrarMensagem("Erro", error.message, "erro");
-            console.error(error);
-            return;
-          }
-
-          await supabase.auth.updateUser({
-            data: {
-              full_name: nome,
-              display_name: apelido,
-              phone: telefone,
-            },
-          });
-
-          mostrarMensagem(
-            "Sucesso",
-            "Alterações salvas com sucesso!",
-            "sucesso",
-          );
-        });
-    </script>
+    <script type="module" src="JS/config.js"></script>
+    <script type="module" src="JS/perfil.js"></script>
   </body>
 </html>

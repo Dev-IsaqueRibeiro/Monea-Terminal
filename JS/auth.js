@@ -1,6 +1,28 @@
 // JS/auth.js
 
-import { supabase } from "./supabase-config.js";
+import { supabase, trackEvent } from "./supabase-config.js";
+
+// 🔥 TRATAMENTO DE LINKS DO SUPABASE (EMAIL CHANGE, RESET, ETC)
+const hash = window.location.hash;
+
+if (hash && hash.includes("type=email_change")) {
+  (async () => {
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error) {
+      alert("Erro ao confirmar alteração de e-mail");
+      return;
+    }
+
+    if (data.session) {
+      alert("E-mail alterado com sucesso!");
+
+      // 🔒 força login novamente com novo e-mail
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    }
+  })();
+}
 
 // --- TRADUTOR DE MENSAGENS (INCLUÍDO NO INÍCIO) ---
 const mensagensTraduzidas = {
@@ -10,8 +32,6 @@ const mensagensTraduzidas = {
   "User already registered": "Este e-mail já está cadastrado.",
   "Password should be at least 6 characters":
     "A senha deve ter pelo menos 6 caracteres.",
-  "New password should be different from the old password.":
-    "A nova senha deve ser diferente da senha antiga.",
   "Network HTTP error": "Erro de conexão. Verifique sua internet.",
   "Signup success":
     "Conta criada! Enviamos um e-mail de ativação via Supabase. Verifique sua caixa de entrada e spam.",
@@ -23,17 +43,24 @@ function traduzir(mensagemOriginal) {
 }
 
 // --- 1. FUNÇÃO UNIVERSAL DE ALERTA (MODAL MONEA) ---
-export function mostrarMensagem(titulo, mensagem, tipo = "sucesso") {
+export function mostrarMensagem(
+  titulo,
+  mensagem,
+  tipo = "sucesso",
+  acao = null,
+) {
   const modal = document.getElementById("moneaAlertModal");
   const tituloEl = document.getElementById("moneaTitle");
   const mensagemEl = document.getElementById("moneaMsg");
 
   if (modal && tituloEl && mensagemEl) {
     tituloEl.innerText = titulo;
-    mensagemEl.innerText = traduzir(mensagem); // AQUI ENTRA A TRADUÇÃO
+    mensagemEl.innerText = traduzir(mensagem);
     tituloEl.className = `monea-alert-title title-${tipo}`;
 
-    // CORREÇÃO PARA SOBREPOSIÇÃO (IMAGEM 2)
+    // 🔥 CONTROLE INTELIGENTE
+    modal.dataset.acao = acao || "";
+
     modal.classList.remove("hidden");
     modal.style.display = "flex";
   }
@@ -46,18 +73,23 @@ document.addEventListener("click", (e) => {
     (e.target.id === "moneaBtnClose" || e.target.id === "moneaAlertModal")
   ) {
     const modal = document.getElementById("moneaAlertModal");
-    const tituloEl = document.getElementById("moneaTitle");
 
     if (modal) {
-      // Verifica se o modal sendo fechado é o de "Sucesso" (Cadastro concluído)
-      const isSucesso =
-        tituloEl && tituloEl.innerText.toLowerCase() === "sucesso";
+      const acao = modal.dataset.acao;
 
       modal.classList.add("hidden");
       modal.style.display = "none";
 
-      // Se for sucesso, redireciona após fechar
-      if (isSucesso) {
+      // 🔥 REDIRECIONAMENTO CONTROLADO
+      if (acao === "login") {
+        window.location.href = "terminal.html";
+      }
+
+      if (acao === "cadastro") {
+        window.location.href = "index.html";
+      }
+
+      if (acao === "reset") {
         window.location.href = "index.html";
       }
     }
@@ -279,7 +311,14 @@ if (loginForm) {
         btnSubmit.innerText = "Entrar";
       }
     } else {
-      window.location.href = "terminal.html";
+      await trackEvent("login");
+
+      mostrarMensagem(
+        "Sucesso",
+        "Login realizado com sucesso!",
+        "sucesso",
+        "login", // 🔥 DEFINE AÇÃO
+      );
     }
   });
 }
@@ -331,7 +370,6 @@ if (registerForm) {
         btnSubmit.innerText = "Criar Agora";
       }
     } else {
-      // ✅ NOVO BLOCO (SALVAR NA TABELA profiles)
       if (data?.user?.id) {
         await supabase.from("profiles").insert([
           {
@@ -344,7 +382,14 @@ if (registerForm) {
         ]);
       }
 
-      mostrarMensagem("Sucesso", "Signup success", "sucesso");
+      await trackEvent("signup");
+
+      mostrarMensagem(
+        "Sucesso",
+        "Signup success",
+        "sucesso",
+        "cadastro", // 🔥 DEFINE AÇÃO
+      );
 
       if (btnSubmit) {
         btnSubmit.disabled = false;
@@ -373,8 +418,8 @@ if (formRedefinir) {
         "Sucesso",
         "Senha atualizada! Redirecionando...",
         "sucesso",
+        "reset", // 🔥 DEFINE AÇÃO
       );
-      setTimeout(() => (window.location.href = "index.html"), 3000);
     }
   });
 }

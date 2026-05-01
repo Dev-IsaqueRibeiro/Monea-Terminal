@@ -1,6 +1,7 @@
 // JS/terminal.js
 
-import { supabase } from "./supabase-config.js";
+import { supabase, trackEvent } from "./supabase-config.js";
+import { CONFIG } from "./config.js";
 
 // 1. LISTA DE ATIVOS (Copiada do seu original)
 const ALL_ASSETS = [
@@ -30,11 +31,14 @@ const ALL_ASSETS = [
   { id: "DOGE", name: "Dogecoin", pair: "DOGE-BRL", type: "Cripto" },
 ];
 
-// Variáveis de Estado
-let selectedAsset = ALL_ASSETS[1]; // Começa no Euro
-let currentPrice = 0;
-let alerts = [];
-let triggeredAlerts = new Set(); // 🔒 trava anti-duplicação
+// 🧠 ESTADO CENTRAL
+const state = {
+  selectedAsset: ALL_ASSETS[1],
+  currentPrice: 0,
+  alerts: [],
+  triggeredAlerts: new Set(), // 🔒 trava anti-duplicação
+  isReady: false,
+};
 
 let chart = null;
 const audioCompra = new Audio("SOUNDS/compra.mp3");
@@ -43,7 +47,6 @@ audioCompra.loop = true;
 audioVenda.loop = true;
 
 let deferredPrompt;
-let isReady = false; // TRAVA DE SEGURANÇA
 let animationFrameId = null;
 
 const installBtn = document.getElementById("installApp");
@@ -100,20 +103,20 @@ async function checkUser() {
 async function fetchData() {
   try {
     const res = await fetch(
-      `https://economia.awesomeapi.com.br/json/last/${selectedAsset.pair}`,
+      `https://economia.awesomeapi.com.br/json/last/${state.selectedAsset.pair}`,
     );
     const json = await res.json();
-    const pairKey = selectedAsset.pair.replace("-", "");
-    currentPrice = Number(json[pairKey].bid);
+    const pairKey = state.selectedAsset.pair.replace("-", "");
+    state.currentPrice = Number(json[pairKey].bid);
 
     if (priceDisplay) {
-      priceDisplay.innerText = `R$ ${currentPrice.toFixed(3)}`;
+      priceDisplay.innerText = `R$ ${state.currentPrice.toFixed(3)}`;
       // Verifica apenas alertas no loop de 2s. O gráfico fica de fora.
       checkAlerts();
-      updateChartData(); // 🔥 SINCRONIZA EM TEMPO REAL
+      updateChartRealtime(); // 🔥 SINCRONIZA EM TEMPO REAL
     }
   } catch (e) {
-    console.error("Erro ao buscar cotação");
+    console.error("Erro ao buscar cotação", e);
   }
 }
 
@@ -124,7 +127,7 @@ function renderTabs() {
   // Gera o HTML dos botões
   tabsContainer.innerHTML = ALL_ASSETS.map((asset) => {
     // Define se o botão ganha a classe 'active' baseada na moeda selecionada
-    const isActive = selectedAsset.id === asset.id ? "active" : "";
+    const isActive = state.selectedAsset.id === asset.id ? "active" : "";
 
     return `
         <button data-id="${asset.id}" class="${isActive}">
@@ -139,11 +142,11 @@ function renderTabs() {
       const id = btn.getAttribute("data-id");
 
       // Atualiza o estado da moeda selecionada
-      selectedAsset = ALL_ASSETS.find((a) => a.id === id);
+      state.selectedAsset = ALL_ASSETS.find((a) => a.id === id);
 
       // Atualiza o nome da moeda no card de preço
       if (assetNameDisplay) {
-        assetNameDisplay.innerText = `${selectedAsset.name} Agora`;
+        assetNameDisplay.innerText = `${state.selectedAsset.name} Agora`;
       }
 
       // Re-renderiza as abas para aplicar a classe 'active' no novo botão
@@ -161,7 +164,7 @@ async function updateChartData() {
     const days = document.getElementById("selectDays")?.value || "30";
 
     const res = await fetch(
-      `https://economia.awesomeapi.com.br/json/daily/${selectedAsset.pair}/${days}`,
+      `https://economia.awesomeapi.com.br/json/daily/${state.selectedAsset.pair}/${days}`,
     );
 
     const data = await res.json();
@@ -184,8 +187,8 @@ async function updateChartData() {
     });
 
     // 🔥 ÚLTIMO PONTO = PREÇO ATUAL
-    if (prices.length > 0 && currentPrice > 0) {
-      prices[prices.length - 1] = currentPrice;
+    if (prices.length > 0 && state.currentPrice > 0) {
+      prices[prices.length - 1] = state.currentPrice;
       labels[labels.length - 1] = "Agora";
     }
 
@@ -256,59 +259,76 @@ async function updateChartData() {
   }
 }
 
-function checkAlerts() {
-  // Se ainda não carregou os dados do banco, NÃO FAZ NADA
-  if (!isReady) return;
+function updateChartRealtime() {
+  if (!chart) return;
 
-  alerts.forEach((alert, index) => {
+  const lastIndex = chart.data.datasets[0].data.length - 1;
+
+  if (lastIndex >= 0) {
+    chart.data.datasets[0].data[lastIndex] = state.currentPrice;
+    chart.update("none"); // ultra leve
+  }
+}
+
+function checkAlerts() {
+  if (!state.isReady) return;
+
+  state.alerts.forEach((alert, index) => {
+    // 🔒 Só trabalha com ativos
     if (alert.status !== "Ativo") return;
 
-    if (alert.ativo === selectedAsset.id) {
-      const price = Number(currentPrice.toFixed(3));
-      const target = Number(alert.precoAlvo.toFixed(3));
+    // 🔒 Só moeda atual
+    if (alert.ativo !== state.selectedAsset.id) return;
 
-      if (
-        (alert.tipo === "Compra" && price <= target) ||
-        (alert.tipo === "Venda" && price >= target)
-      ) {
-        // 🔒 EVITA DISPARO DUPLICADO
-        if (triggeredAlerts.has(alert.id)) return;
+    const price = Number(state.currentPrice.toFixed(3));
+    const target = Number(alert.precoAlvo.toFixed(3));
 
-        triggeredAlerts.add(alert.id);
+    const isTriggered =
+      (alert.tipo === "Compra" && price <= target) ||
+      (alert.tipo === "Venda" && price >= target);
 
-        alerts[index].status = "Disparado";
-        triggerAlarm(alert);
+    if (!isTriggered) return;
 
-        // 🚀 DISPARA PUSH
-        sendPushNotification(alert);
+    // 🔒 Evita duplicação
+    if (state.triggeredAlerts.has(alert.id)) return;
 
-        updateAlertStatusInDatabase(alert.id);
-        renderAlertsTable();
-      }
-    }
+    // 🔒 TRAVA IMEDIATA
+    state.triggeredAlerts.add(alert.id);
+
+    // 🔥 Atualiza estado local
+    state.alerts[index].status = "Disparado";
+
+    // 🔥 UI
+    triggerAlarm(alert);
+
+    // 🔥 Banco (assíncrono)
+    updateAlertStatusInDatabase(alert.id);
+
+    // 🔥 Push
+    sendPushNotification(alert);
+
+    // 🔥 Render
+    renderAlertsTable();
   });
 }
 
 // FUNÇÃO NOTIFICAÇÃO NO CELULAR
 async function sendPushNotification(alert) {
   try {
-    await fetch(
-      "https://cpxaywxaiohjnqskhufr.supabase.co/functions/v1/hyper-api",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title:
-            alert.tipo === "Compra"
-              ? "📉 Oportunidade de Compra!"
-              : "📈 Hora de Vender!",
-          body: `O ${alert.ativo} atingiu R$ ${alert.precoAlvo.toFixed(3)}`,
-          url: "./terminal.html",
-        }),
+    await fetch(CONFIG.PUSH_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        title:
+          alert.tipo === "Compra"
+            ? "📉 Oportunidade de Compra!"
+            : "📈 Hora de Vender!",
+        body: `O ${alert.ativo} atingiu R$ ${alert.precoAlvo.toFixed(3)}`,
+        url: "./terminal.html",
+      }),
+    });
   } catch (error) {
     console.error("Erro ao enviar push:", error);
   }
@@ -374,7 +394,7 @@ function triggerAlarm(alert) {
 
 function renderAlertsTable() {
   if (!alertsBody) return;
-  alertsBody.innerHTML = alerts
+  alertsBody.innerHTML = state.alerts
     .map((a) => {
       // Define a cor baseada no tipo
       const corTipo = a.tipo === "Compra" ? "#1ead5a" : "#dc2626";
@@ -393,14 +413,19 @@ function renderAlertsTable() {
 }
 
 // 5. LOGOUT
-btnLogout.addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  window.location.href = "index.html";
-});
+if (btnLogout) {
+  btnLogout.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = "index.html";
+  });
+}
 
 // INICIALIZAÇÃO
 function init() {
-  assetNameDisplay.innerText = `${selectedAsset.name} Agora`;
+  trackEvent("app_open");
+  if (assetNameDisplay) {
+    assetNameDisplay.innerText = `${state.selectedAsset.name} Agora`;
+  }
   renderTabs();
   fetchData();
 
@@ -428,8 +453,8 @@ function init() {
   );
 
   // APLICANDO MÁSCARA NOS INPUTS
-  applyInputMask(inputCompra);
-  applyInputMask(inputVenda);
+  if (inputCompra) applyInputMask(inputCompra);
+  if (inputVenda) applyInputMask(inputVenda);
 
   const selectDays = document.getElementById("selectDays");
   if (selectDays) {
@@ -450,9 +475,11 @@ function init() {
       // 2. Faz o Cálculo
       if (operacao === "brlParaEstrangeira") {
         inputDestino.value =
-          currentPrice > 0 ? (numberValue / currentPrice).toFixed(3) : "0.000";
+          state.currentPrice > 0
+            ? (numberValue / state.currentPrice).toFixed(3)
+            : "0.000";
       } else {
-        inputDestino.value = (numberValue * currentPrice).toFixed(3);
+        inputDestino.value = (numberValue * state.currentPrice).toFixed(3);
       }
     };
 
@@ -474,170 +501,91 @@ function init() {
     });
   }
 
-  // --- BOTÕES DE ALERTA ---
-  document.getElementById("btnAlertCompra").onclick = async () => {
-    const val = parseFloat(inputCompra.value);
-    if (!val || val === 0) return;
+  // 🔔 BOTÃO COMPRA
+  const btnCompra = document.getElementById("btnAlertCompra");
+  if (btnCompra) {
+    btnCompra.onclick = async () => {
+      const val = parseFloat(inputCompra.value);
+      if (!val || val === 0) return;
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user;
-
-    if (!user) {
-      alert("Sessão expirada. Por favor, saia e faça login novamente.");
-      return;
-    }
-
-    const { error } = await supabase.from("price_alerts").insert([
-      {
-        user_id: user.id,
-        asset_id: selectedAsset.id,
-        type: "Compra",
-        target_price: val,
-        status: "Ativo",
-      },
-    ]);
-
-    if (!error) {
-      inputCompra.value = "";
-      fetchAlertsFromDatabase();
-    } else {
-      console.error("Erro Supabase:", error.message);
-    }
-  };
-
-  document.getElementById("btnAlertVenda").onclick = async () => {
-    const val = parseFloat(inputVenda.value);
-    if (!val || val === 0) return;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user;
-
-    if (!user) {
-      alert("Sessão expirada. Por favor, saia e faça login novamente.");
-      return;
-    }
-
-    const { error } = await supabase.from("price_alerts").insert([
-      {
-        user_id: user.id,
-        asset_id: selectedAsset.id,
-        type: "Venda",
-        target_price: val,
-        status: "Ativo",
-      },
-    ]);
-
-    if (!error) {
-      inputVenda.value = "";
-      fetchAlertsFromDatabase();
-    } else {
-      console.error("Erro Supabase:", error.message);
-    }
-  };
-
-  document.getElementById("btnStopSiren").onclick = () => {
-    // Para o som e volta para o segundo zero
-    audioCompra.pause();
-    audioCompra.currentTime = 0;
-
-    audioVenda.pause();
-    audioVenda.currentTime = 0;
-
-    alertPopup.classList.add("hidden");
-    document.body.classList.remove("bg-buy-flash", "bg-sell-flash");
-  };
-
-  // LOGICA DE INSTALAÇÃO PWA
-  // A. Registrar o Service Worker
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js");
-  }
-
-  // B. Escutar o evento do navegador perguntando se pode instalar
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault(); // Impede o navegador de mostrar o prompt padrão chato
-    deferredPrompt = e; // Guarda o evento para usar quando o usuário clicar no seu botão
-    if (installBtn) installBtn.style.display = "flex"; // Mostra o seu botão de vidro
-  });
-
-  // C. Ação do clique no seu botão "Instalar App"
-  if (installBtn) {
-    installBtn.addEventListener("click", async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt(); // Abre a janelinha de instalação
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === "accepted") {
-          console.log("Monea Terminal instalado!");
-        }
-        deferredPrompt = null;
-        installBtn.style.display = "none";
-      }
-    });
-  }
-
-  // D. Esconder o botão se o usuário já instalou por outro caminho
-  window.addEventListener("appinstalled", () => {
-    if (installBtn) installBtn.style.display = "none";
-    deferredPrompt = null;
-  });
-
-  // ==========================
-  // 🔔 REGISTRO PUSH NOTIFICATION
-  // ==========================
-  if ("serviceWorker" in navigator && "PushManager" in window) {
-    navigator.serviceWorker.ready.then(async (registration) => {
-      const permission = await Notification.requestPermission();
-
-      if (permission !== "granted") {
-        console.log("Permissão de notificação negada");
-        return;
-      }
-
-      // 🔐 CHAVE VAPID (SUBSTITUIR DEPOIS)
-      const VAPID_PUBLIC_KEY =
-        "BKLP4UEF_0ZOxwKeSEBxZpPIx7MgorWqIPK8RlmkoEx4H6XWc6-vH40LWXZ3_Q6lnVZ8EeVPRL41uLhnKCX3BhE";
-
-      function urlBase64ToUint8Array(base64String) {
-        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding)
-          .replace(/-/g, "+")
-          .replace(/_/g, "/");
-
-        const rawData = window.atob(base64);
-        return new Uint8Array([...rawData].map((char) => char.charCodeAt(0)));
-      }
-
-      let subscription = await registration.pushManager.getSubscription();
-
-      // 🔥 Só cria se NÃO existir
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        });
-      }
-
-      // 🔥 SALVA NO SUPABASE
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      const user = session?.user;
 
-      if (session?.user) {
-        await supabase.from("push_subscriptions").upsert({
-          user_id: session.user.id,
-          subscription: subscription,
-        });
+      if (!user) {
+        alert("Sessão expirada. Faça login novamente.");
+        return;
       }
-    });
+
+      const { error } = await supabase.from("price_alerts").insert([
+        {
+          user_id: user.id,
+          asset_id: state.selectedAsset.id,
+          type: "Compra",
+          target_price: val,
+          status: "Ativo",
+        },
+      ]);
+
+      if (!error) {
+        inputCompra.value = "";
+        fetchAlertsFromDatabase();
+      } else {
+        console.error(error);
+        alert("Erro ao criar alerta");
+      }
+    };
   }
 
-  setInterval(fetchData, 2000);
+  // 🔔 BOTÃO VENDA
+  const btnVenda = document.getElementById("btnAlertVenda");
+  if (btnVenda) {
+    btnVenda.onclick = async () => {
+      const val = parseFloat(inputVenda.value);
+      if (!val || val === 0) return;
 
-  fetchAlertsFromDatabase();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
+
+      if (!user) {
+        alert("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      const { error } = await supabase.from("price_alerts").insert([
+        {
+          user_id: user.id,
+          asset_id: state.selectedAsset.id,
+          type: "Venda",
+          target_price: val,
+          status: "Ativo",
+        },
+      ]);
+
+      if (!error) {
+        inputVenda.value = "";
+        fetchAlertsFromDatabase();
+      }
+    };
+  }
+
+  // 🔕 BOTÃO PARAR ALARME
+  const btnStop = document.getElementById("btnStopSiren");
+  if (btnStop) {
+    btnStop.onclick = () => {
+      audioCompra.pause();
+      audioCompra.currentTime = 0;
+
+      audioVenda.pause();
+      audioVenda.currentTime = 0;
+
+      alertPopup.classList.add("hidden");
+      document.body.classList.remove("bg-buy-flash", "bg-sell-flash");
+    };
+  }
 }
 
 checkUser();
@@ -655,22 +603,32 @@ async function fetchAlertsFromDatabase() {
     .order("created_at", { ascending: false });
 
   if (!error && data) {
-    alerts = data.map((item) => ({
-      id: item.id, // Guarda o ID para poder atualizar o status depois
+    state.alerts = data.map((item) => ({
+      id: item.id,
       ativo: item.asset_id,
       tipo: item.type,
       precoAlvo: item.target_price,
       status: item.status,
-      // Lógica: se já foi disparado, mostra a hora do banco, senão mostra a data de criação
       data: item.triggered_at
         ? new Date(item.triggered_at).toLocaleTimeString()
         : new Date(item.created_at).toLocaleTimeString(),
     }));
+
+    // 🔥 RESETA CONTROLE LOCAL BASEADO NO BANCO
+    state.triggeredAlerts.clear();
+
+    // 🔥 REPOPULA COM OS QUE JÁ FORAM DISPARADOS
+    state.alerts.forEach((a) => {
+      if (a.status === "Disparado") {
+        state.triggeredAlerts.add(a.id);
+      }
+    });
+
     renderAlertsTable();
 
     // LIBERA A CHECAGEM DE ALARMES APÓS 1 SEGUNDO DO CARREGAMENTO
     setTimeout(() => {
-      isReady = true;
+      state.isReady = true;
     }, 1000);
   }
 }

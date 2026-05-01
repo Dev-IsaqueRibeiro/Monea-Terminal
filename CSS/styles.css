@@ -217,7 +217,25 @@ input,
   transition: all 0.3s ease-in-out;
 }
 
-#btnSalvar:hover {
+#btnLogoutConfig {
+  width: 100%;
+  padding: 18px;
+  margin-top: 1rem;
+  color: #384252;
+  border: none;
+  letter-spacing: 1px;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 35px #384252,
+    0 3px 10px #384252;
+  transition: all 0.3s ease-in-out;
+}
+
+#btnSalvar:hover,
+#btnLogoutConfig:hover {
   box-shadow:
     inset 0 0 35px #e11d48,
     0 3px 10px #e11d48;
