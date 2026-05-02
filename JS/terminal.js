@@ -2,6 +2,7 @@
 
 import { supabase, trackEvent } from "./supabase-config.js";
 import { CONFIG } from "./config.js";
+import { triggerInstall } from "./pwa-manager.js";
 
 // 1. LISTA DE ATIVOS (Copiada do seu original)
 const ALL_ASSETS = [
@@ -434,34 +435,16 @@ if (btnLogout) {
 async function init() {
   trackEvent("app_open");
 
-  // 🔥 PWA - INSTALAÇÃO (COLOQUE NO TOPO)
-  window.addEventListener("beforeinstallprompt", (e) => {
-    console.log("💾 PWA disponível para instalação");
-
-    e.preventDefault();
-    deferredPrompt = e;
+  // 🔥 PWA - ESCUTA EVENTOS GLOBAIS (CORRETO)
+  window.addEventListener("pwa:available", () => {
+    console.log("📲 Mostrar botão instalar");
 
     if (installBtn) {
       installBtn.style.display = "flex";
     }
   });
 
-  if (installBtn) {
-    installBtn.addEventListener("click", async () => {
-      if (!deferredPrompt) return;
-
-      deferredPrompt.prompt();
-
-      const { outcome } = await deferredPrompt.userChoice;
-
-      console.log("📲 Resultado da instalação:", outcome);
-
-      deferredPrompt = null;
-      installBtn.style.display = "none";
-    });
-  }
-
-  window.addEventListener("appinstalled", () => {
+  window.addEventListener("pwa:installed", () => {
     console.log("✅ App instalado");
 
     if (installBtn) {
@@ -469,7 +452,19 @@ async function init() {
     }
   });
 
-  // 🔽 RESTO DO SEU CÓDIGO (INALTERADO)
+  // 🔥 Clique no botão instalar
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
+      const result = await triggerInstall();
+
+      console.log("📲 Resultado da instalação:", result);
+
+      if (result === "accepted") {
+        installBtn.style.display = "none";
+      }
+    });
+  }
+
   if (assetNameDisplay) {
     assetNameDisplay.innerText = `${state.selectedAsset.name} Agora`;
   }
