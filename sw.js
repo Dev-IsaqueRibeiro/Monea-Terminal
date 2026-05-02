@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = "monea-v1";
+const CACHE_NAME = "monea-v2";
 const ASSETS = [
   "./",
   "./terminal.html",
@@ -9,16 +9,52 @@ const ASSETS = [
   "./IMAGES/Logo2.png",
 ];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
+self.addEventListener("install", (event) => {
+  self.skipWaiting(); // 🔥 ativa imediatamente
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    }),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key); // 🔥 limpa versões antigas
+          }
+        }),
+      ),
+    ),
+  );
+
+  self.clients.claim(); // 🔥 assume controle imediato
 });
 
 self.addEventListener("fetch", (event) => {
+  // 🚨 NÃO INTERCEPTAR POST (Supabase, API, etc)
+  if (event.request.method !== "GET") return;
+
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request).then((response) => {
-        return response || caches.match("./terminal.html");
-      });
+    caches.match(event.request).then((cached) => {
+      return (
+        cached ||
+        fetch(event.request)
+          .then((response) => {
+            const clone = response.clone();
+
+            caches.open("monea-dynamic").then((cache) => {
+              cache.put(event.request, clone);
+            });
+
+            return response;
+          })
+          .catch(() => caches.match("./terminal.html"))
+      );
     }),
   );
 });

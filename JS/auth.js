@@ -200,7 +200,7 @@ if (countryDisplay) {
 
   async function autoDetect() {
     try {
-      const res = await fetch("http://ip-api.com/json/");
+      const res = await fetch("https://ipapi.co/json/");
       const data = await res.json();
       if (data.status === "success")
         selectCountry(data.countryCode, data.country);
@@ -209,9 +209,21 @@ if (countryDisplay) {
     }
   }
 
-  countryDisplay.addEventListener("click", () =>
-    countryList.classList.toggle("hidden"),
-  );
+  countryDisplay.addEventListener("click", () => {
+    countryList.classList.toggle("hidden");
+  });
+
+  // 🔥 NOVO: fecha ao clicar fora (ESSENCIAL no mobile)
+  document.addEventListener("click", (e) => {
+    if (
+      countryList &&
+      !countryDisplay.contains(e.target) &&
+      !countryList.contains(e.target)
+    ) {
+      countryList.classList.add("hidden");
+    }
+  });
+
   populateCountryList();
   autoDetect();
 }
@@ -230,16 +242,21 @@ if (phoneInput) {
 
 // Revelar Senha (Global)
 document.addEventListener("click", (e) => {
-  if (
-    e.target.classList.contains("icon-btn") ||
-    e.target.id === "btnTogglePass"
-  ) {
+  const btn = e.target.closest(".icon-btn");
+
+  if (btn) {
     e.preventDefault();
-    const container = e.target.closest(".field");
+
+    const container = btn.closest(".field");
+    if (!container) return;
+
     const input = container.querySelector("input");
+    if (!input) return;
+
     const isPass = input.type === "password";
     input.type = isPass ? "text" : "password";
-    e.target.innerText = isPass ? "🔓" : "🔒";
+
+    btn.innerText = isPass ? "🔓" : "🔒";
   }
 });
 

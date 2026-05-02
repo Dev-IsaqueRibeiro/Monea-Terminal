@@ -40,6 +40,8 @@ const state = {
   isReady: false,
 };
 
+window.state = state;
+
 let chart = null;
 const audioCompra = new Audio("SOUNDS/compra.mp3");
 const audioVenda = new Audio("SOUNDS/venda.mp3");
@@ -105,18 +107,21 @@ async function fetchData() {
     const res = await fetch(
       `https://economia.awesomeapi.com.br/json/last/${state.selectedAsset.pair}`,
     );
+
     const json = await res.json();
     const pairKey = state.selectedAsset.pair.replace("-", "");
     state.currentPrice = Number(json[pairKey].bid);
 
     if (priceDisplay) {
       priceDisplay.innerText = `R$ ${state.currentPrice.toFixed(3)}`;
-      // Verifica apenas alertas no loop de 2s. O gráfico fica de fora.
       checkAlerts();
-      updateChartRealtime(); // 🔥 SINCRONIZA EM TEMPO REAL
+      updateChartRealtime();
     }
+
+    return true;
   } catch (e) {
     console.error("Erro ao buscar cotação", e);
+    return false;
   }
 }
 
@@ -271,10 +276,13 @@ function updateChartRealtime() {
 }
 
 function checkAlerts() {
+  console.log("🔍 CHECKANDO ALERTAS...", state.currentPrice);
   if (!state.isReady) return;
 
   state.alerts.forEach((alert, index) => {
     // 🔒 Só trabalha com ativos
+    console.log("STATUS:", alert.status);
+
     if (alert.status !== "Ativo") return;
 
     // 🔒 Só moeda atual
@@ -283,13 +291,15 @@ function checkAlerts() {
     const price = Number(state.currentPrice.toFixed(3));
     const target = Number(alert.precoAlvo.toFixed(3));
 
+    const tipo = (alert.tipo || "").toLowerCase();
+
     const isTriggered =
-      (alert.tipo === "Compra" && price <= target) ||
-      (alert.tipo === "Venda" && price >= target);
+      (tipo === "compra" && price <= target) ||
+      (tipo === "venda" && price >= target);
 
     if (!isTriggered) return;
 
-    // 🔒 Evita duplicação
+    // 🔒 Evita duplicação REAL (único controle necessário)
     if (state.triggeredAlerts.has(alert.id)) return;
 
     // 🔒 TRAVA IMEDIATA
@@ -421,13 +431,25 @@ if (btnLogout) {
 }
 
 // INICIALIZAÇÃO
-function init() {
+async function init() {
   trackEvent("app_open");
+
   if (assetNameDisplay) {
     assetNameDisplay.innerText = `${state.selectedAsset.name} Agora`;
   }
+
   renderTabs();
+
+  // 🔥 CARREGA ALERTAS PRIMEIRO (OBRIGATÓRIO)
+  await fetchAlertsFromDatabase();
+
   fetchData();
+  updateChartData();
+
+  // 🚨 LOOP CONTÍNUO (ESSENCIAL)
+  setInterval(() => {
+    fetchData(); // isso já chama checkAlerts internamente
+  }, 2000);
 
   // 🔊 LIBERA ÁUDIO NO MOBILE (CORRETO)
   document.addEventListener(
@@ -626,10 +648,8 @@ async function fetchAlertsFromDatabase() {
 
     renderAlertsTable();
 
-    // LIBERA A CHECAGEM DE ALARMES APÓS 1 SEGUNDO DO CARREGAMENTO
-    setTimeout(() => {
-      state.isReady = true;
-    }, 1000);
+    // 🔥 CORRETO
+    state.isReady = true;
   }
 }
 
