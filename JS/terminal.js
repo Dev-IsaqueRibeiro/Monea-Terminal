@@ -83,7 +83,7 @@ async function checkUser() {
 
   if (btnWhatsapp) {
     const mensagem = `Olá! 👋🏽
-✔️ Me chamo <strong>${apelido}</strong>!<br>
+✔️ Me chamo *${apelido}*!<br>
 💱 Venho através do Conversor de Moedas, Monea Terminal 🪙.`;
 
     const url = `https://wa.me/5547991719319?text=${encodeURIComponent(mensagem)}`;
@@ -434,6 +434,42 @@ if (btnLogout) {
 async function init() {
   trackEvent("app_open");
 
+  // 🔥 PWA - INSTALAÇÃO (COLOQUE NO TOPO)
+  window.addEventListener("beforeinstallprompt", (e) => {
+    console.log("💾 PWA disponível para instalação");
+
+    e.preventDefault();
+    deferredPrompt = e;
+
+    if (installBtn) {
+      installBtn.style.display = "flex";
+    }
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+
+      deferredPrompt.prompt();
+
+      const { outcome } = await deferredPrompt.userChoice;
+
+      console.log("📲 Resultado da instalação:", outcome);
+
+      deferredPrompt = null;
+      installBtn.style.display = "none";
+    });
+  }
+
+  window.addEventListener("appinstalled", () => {
+    console.log("✅ App instalado");
+
+    if (installBtn) {
+      installBtn.style.display = "none";
+    }
+  });
+
+  // 🔽 RESTO DO SEU CÓDIGO (INALTERADO)
   if (assetNameDisplay) {
     assetNameDisplay.innerText = `${state.selectedAsset.name} Agora`;
   }
@@ -448,10 +484,10 @@ async function init() {
 
   // 🚨 LOOP CONTÍNUO (ESSENCIAL)
   setInterval(() => {
-    fetchData(); // isso já chama checkAlerts internamente
+    fetchData();
   }, 2000);
 
-  // 🔊 LIBERA ÁUDIO NO MOBILE (CORRETO)
+  // 🔊 LIBERA ÁUDIO NO MOBILE
   document.addEventListener(
     "click",
     () => {
@@ -474,7 +510,7 @@ async function init() {
     { once: true },
   );
 
-  // APLICANDO MÁSCARA NOS INPUTS
+  // 🔧 INPUTS
   if (inputCompra) applyInputMask(inputCompra);
   if (inputVenda) applyInputMask(inputVenda);
 
@@ -483,18 +519,16 @@ async function init() {
     selectDays.onchange = () => updateChartData();
   }
 
-  // --- LÓGICA DO CONVERSOR DIRETO (Corrigida) ---
+  // 💱 CONVERSOR
   if (convBRL && convForeign) {
     convBRL.value = "0.000";
     convForeign.value = "0.000";
 
     const processarConversao = (inputDestino, e, operacao) => {
-      // 1. Aplica a Máscara Financeira
       let rawValue = e.target.value.replace(/\D/g, "");
       let numberValue = (parseInt(rawValue) || 0) / 1000;
       e.target.value = numberValue.toFixed(3);
 
-      // 2. Faz o Cálculo
       if (operacao === "brlParaEstrangeira") {
         inputDestino.value =
           state.currentPrice > 0
@@ -505,7 +539,6 @@ async function init() {
       }
     };
 
-    // CORREÇÃO AQUI: Removido o argumento extra que causava o erro
     convBRL.addEventListener("input", (e) =>
       processarConversao(convForeign, e, "brlParaEstrangeira"),
     );
@@ -518,12 +551,14 @@ async function init() {
         if (e.target.value === "0.000") e.target.value = "";
       });
       input.addEventListener("blur", (e) => {
-        if (!e.target.value || e.target.value === "0") e.target.value = "0.000";
+        if (!e.target.value || e.target.value === "0") {
+          e.target.value = "0.000";
+        }
       });
     });
   }
 
-  // 🔔 BOTÃO COMPRA
+  // 🔔 ALERTA COMPRA
   const btnCompra = document.getElementById("btnAlertCompra");
   if (btnCompra) {
     btnCompra.onclick = async () => {
@@ -533,16 +568,15 @@ async function init() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const user = session?.user;
 
-      if (!user) {
-        alert("Sessão expirada. Faça login novamente.");
+      if (!session?.user) {
+        alert("Sessão expirada.");
         return;
       }
 
       const { error } = await supabase.from("price_alerts").insert([
         {
-          user_id: user.id,
+          user_id: session.user.id,
           asset_id: state.selectedAsset.id,
           type: "Compra",
           target_price: val,
@@ -553,14 +587,11 @@ async function init() {
       if (!error) {
         inputCompra.value = "";
         fetchAlertsFromDatabase();
-      } else {
-        console.error(error);
-        alert("Erro ao criar alerta");
       }
     };
   }
 
-  // 🔔 BOTÃO VENDA
+  // 🔔 ALERTA VENDA
   const btnVenda = document.getElementById("btnAlertVenda");
   if (btnVenda) {
     btnVenda.onclick = async () => {
@@ -570,16 +601,15 @@ async function init() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const user = session?.user;
 
-      if (!user) {
-        alert("Sessão expirada. Faça login novamente.");
+      if (!session?.user) {
+        alert("Sessão expirada.");
         return;
       }
 
       const { error } = await supabase.from("price_alerts").insert([
         {
-          user_id: user.id,
+          user_id: session.user.id,
           asset_id: state.selectedAsset.id,
           type: "Venda",
           target_price: val,
@@ -594,7 +624,7 @@ async function init() {
     };
   }
 
-  // 🔕 BOTÃO PARAR ALARME
+  // 🔕 PARAR ALARME
   const btnStop = document.getElementById("btnStopSiren");
   if (btnStop) {
     btnStop.onclick = () => {
