@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = "monea-v3";
+const CACHE_NAME = "monea-v5";
 const ASSETS = [
   "./",
   "./terminal.html",
@@ -36,24 +36,35 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // 🚨 NÃO INTERCEPTAR POST (Supabase, API, etc)
   if (event.request.method !== "GET") return;
 
+  const url = event.request.url;
+
+  // 🚫 NUNCA CACHEAR APIs (cotação, Supabase, etc)
+  if (
+    url.includes("awesomeapi") ||
+    url.includes("supabase") ||
+    url.includes("/rest/") ||
+    url.includes("/auth/")
+  ) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // 📦 CACHE NORMAL só para arquivos estáticos
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return (
         cached ||
-        fetch(event.request)
-          .then((response) => {
-            const clone = response.clone();
+        fetch(event.request).then((response) => {
+          const clone = response.clone();
 
-            caches.open("monea-dynamic").then((cache) => {
-              cache.put(event.request, clone);
-            });
+          caches.open("monea-dynamic").then((cache) => {
+            cache.put(event.request, clone);
+          });
 
-            return response;
-          })
-          .catch(() => caches.match("./terminal.html"))
+          return response;
+        })
       );
     }),
   );
