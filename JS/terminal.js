@@ -33,8 +33,13 @@ const ALL_ASSETS = [
 ];
 
 // 🧠 ESTADO CENTRAL
+// Recupera a última moeda que o usuário clicou
+const savedAssetId = localStorage.getItem("selectedAssetId");
+const initialAsset =
+  ALL_ASSETS.find((a) => a.id === savedAssetId) || ALL_ASSETS[1];
+
 const state = {
-  selectedAsset: ALL_ASSETS[1],
+  selectedAsset: initialAsset,
   currentPrice: 0,
   alerts: [],
   triggeredAlerts: new Set(), // 🔒 trava anti-duplicação
@@ -65,6 +70,35 @@ const alertsBody = document.getElementById("alertsBody");
 const alertPopup = document.getElementById("alertPopup");
 const convBRL = document.getElementById("convBRL");
 const convForeign = document.getElementById("convForeign");
+
+// Auxiliar para injetar a tag <span> de opacidade nos preços renderizados como HTML
+function formatarPrecoMonea(valor, incluirSifrao = true) {
+  const numero = parseFloat(valor);
+  if (isNaN(numero)) return incluirSifrao ? "R$ 0,0000" : "0,0000";
+
+  // Garante ponto no milhar e vírgula com 4 casas
+  const numeroFormatado = new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  }).format(numero);
+
+  const comprimento = numeroFormatado.length;
+  const partePrincipal = numeroFormatado.substring(0, comprimento - 2);
+  const doisUltimosDigitos = numeroFormatado.substring(comprimento - 2);
+
+  const prefixo = incluirSifrao ? "R$ " : "";
+  return `${prefixo}${partePrincipal}<span class="decimal-dim">${doisUltimosDigitos}</span>`;
+}
+
+// Auxiliar para preencher strings limpas dentro dos campos <input> (sem HTML)
+function formatarInputBruto(valor) {
+  const numero = parseFloat(valor);
+  if (isNaN(numero)) return "0,0000";
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  }).format(numero);
+}
 
 // 2. PROTEÇÃO DE ROTA & SESSÃO
 async function checkUser() {
@@ -114,7 +148,7 @@ async function fetchData() {
     state.currentPrice = Number(json[pairKey].bid);
 
     if (priceDisplay) {
-      priceDisplay.innerText = `R$ ${state.currentPrice.toFixed(3)}`;
+      priceDisplay.innerHTML = formatarPrecoMonea(state.currentPrice); // 🔥 Usa innerHTML por causa do span
       checkAlerts();
       updateChartRealtime();
     }
@@ -129,6 +163,14 @@ async function fetchData() {
 // 4. NAVEGAÇÃO ENTRE MOEDAS (Tabs)
 function renderTabs() {
   if (!tabsContainer) return;
+
+  // 🔥 Captura o elemento de texto da moeda do conversor dinamicamente
+  const convLabel = document.getElementById("convLabel");
+
+  // Garante que, ao carregar a página, o conversor já exiba a sigla correta do estado central
+  if (convLabel) {
+    convLabel.textContent = state.selectedAsset.id;
+  }
 
   // Gera o HTML dos botões
   tabsContainer.innerHTML = ALL_ASSETS.map((asset) => {
@@ -147,12 +189,18 @@ function renderTabs() {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
 
-      // Atualiza o estado da moeda selecionada
+      // Atualiza o estado da moeda selecionada e persiste no navegador
       state.selectedAsset = ALL_ASSETS.find((a) => a.id === id);
+      localStorage.setItem("selectedAssetId", id);
 
-      // Atualiza o nome da moeda no card de preço
+      // Atualiza o nome da moeda no card de preço principal
       if (assetNameDisplay) {
         assetNameDisplay.innerText = `${state.selectedAsset.name} Agora`;
+      }
+
+      // 🔥 Atualiza dinamicamente o texto do conversor direto no clique
+      if (convLabel) {
+        convLabel.textContent = state.selectedAsset.id;
       }
 
       // Re-renderiza as abas para aplicar a classe 'active' no novo botão
@@ -414,7 +462,7 @@ function renderAlertsTable() {
           <tr>
               <td>${a.ativo}</td>
               <td style="color: ${corTipo}; font-weight: bold;">${a.tipo}</td>
-              <td>R$ ${a.precoAlvo.toFixed(3)}</td>
+              <td>${formatarPrecoMonea(a.precoAlvo)}</td>
               <td><span class="status-tag ${a.status === "Ativo" ? "status-active" : "status-triggered"}">${a.status}</span></td>
               <td class="text-right">${a.data}</td>
           </tr>
@@ -516,21 +564,22 @@ async function init() {
 
   // 💱 CONVERSOR
   if (convBRL && convForeign) {
-    convBRL.value = "0.000";
-    convForeign.value = "0.000";
+    convBRL.value = "0,0000";
+    convForeign.value = "0,0000";
 
     const processarConversao = (inputDestino, e, operacao) => {
       let rawValue = e.target.value.replace(/\D/g, "");
-      let numberValue = (parseInt(rawValue) || 0) / 1000;
-      e.target.value = numberValue.toFixed(3);
+      let numberValue = (parseInt(rawValue) || 0) / 10000; // 🔥 Mudou para 10000 pelas 4 casas
+
+      e.target.value = formatarInputBruto(numberValue); // 🔥 Aplica os pontos de milhares no input atual
 
       if (operacao === "brlParaEstrangeira") {
-        inputDestino.value =
-          state.currentPrice > 0
-            ? (numberValue / state.currentPrice).toFixed(3)
-            : "0.000";
+        const resultado =
+          state.currentPrice > 0 ? numberValue / state.currentPrice : 0;
+        inputDestino.value = formatarInputBruto(resultado);
       } else {
-        inputDestino.value = (numberValue * state.currentPrice).toFixed(3);
+        const resultado = numberValue * state.currentPrice;
+        inputDestino.value = formatarInputBruto(resultado);
       }
     };
 
@@ -543,11 +592,19 @@ async function init() {
 
     [convBRL, convForeign].forEach((input) => {
       input.addEventListener("focus", (e) => {
-        if (e.target.value === "0.000") e.target.value = "";
+        // Zera o campo se for o valor inicial padrão para facilitar digitação limpa
+        if (e.target.value === "0,0000") {
+          e.target.value = "";
+        } else {
+          // Se já houver um número digitado, seleciona tudo ao clicar para substituição rápida
+          setTimeout(() => e.target.select(), 0);
+        }
       });
+
       input.addEventListener("blur", (e) => {
+        // Se o usuário sair sem digitar nada, restaura o padrão de 4 casas
         if (!e.target.value || e.target.value === "0") {
-          e.target.value = "0.000";
+          e.target.value = "0,0000";
         }
       });
     });
@@ -557,7 +614,9 @@ async function init() {
   const btnCompra = document.getElementById("btnAlertCompra");
   if (btnCompra) {
     btnCompra.onclick = async () => {
-      const val = parseFloat(inputCompra.value);
+      // Remove todos os pontos de milhar e substitui a vírgula decimal por ponto antes de converter
+      const limpo = inputCompra.value.replace(/\./g, "").replace(",", ".");
+      const val = parseFloat(limpo);
       if (!val || val === 0) return;
 
       const {
@@ -590,7 +649,8 @@ async function init() {
   const btnVenda = document.getElementById("btnAlertVenda");
   if (btnVenda) {
     btnVenda.onclick = async () => {
-      const val = parseFloat(inputVenda.value);
+      const limpo = inputVenda.value.replace(/\./g, "").replace(",", ".");
+      const val = parseFloat(limpo);
       if (!val || val === 0) return;
 
       const {
@@ -678,20 +738,20 @@ async function fetchAlertsFromDatabase() {
   }
 }
 
-// Máscara Financeira de 3 casas (0.000)
+// Máscara Financeira de 4 casas (0,0000) com milhar
 function applyInputMask(input) {
-  // Define o valor inicial visual
-  if (!input.value) input.value = "0.000";
+  // Define o valor inicial visual correto
+  if (!input.value || input.value === "0.0000") input.value = "0,0000";
 
   input.addEventListener("input", (e) => {
     // 1. Pega apenas os números digitados
     let value = e.target.value.replace(/\D/g, "");
 
-    // 2. Transforma em número e divide por 1000 para ter 3 casas decimais
-    let numberValue = (parseInt(value) || 0) / 1000;
+    // 2. Transforma em número e divide por 10000 para ter 4 casas decimais
+    let numberValue = (parseInt(value) || 0) / 10000;
 
-    // 3. Formata de volta para string com exatamente 3 casas decimais
-    e.target.value = numberValue.toFixed(3);
+    // 3. Formata de volta usando a função auxiliar limpa
+    e.target.value = formatarInputBruto(numberValue);
 
     // Move o cursor para o final (para melhor UX)
     setTimeout(() => {
@@ -701,11 +761,16 @@ function applyInputMask(input) {
 
   // Limpa o campo ao focar para facilitar a digitação
   input.addEventListener("focus", (e) => {
-    if (e.target.value === "0.000") e.target.value = "";
+    if (e.target.value === "0,0000" || e.target.value === "0.0000") {
+      e.target.value = "";
+    } else {
+      // Se já tiver valor cadastrado, seleciona tudo ao focar
+      setTimeout(() => e.target.select(), 0);
+    }
   });
 
   // Restaura o padrão se sair e estiver vazio
   input.addEventListener("blur", (e) => {
-    if (!e.target.value || e.target.value === "0") e.target.value = "0.000";
+    if (!e.target.value || e.target.value === "0") e.target.value = "0,0000";
   });
 }

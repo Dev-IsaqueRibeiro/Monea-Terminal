@@ -1,6 +1,6 @@
 // sw.js
 
-const CACHE_NAME = "monea-v5";
+const CACHE_NAME = "monea-v6";
 const ASSETS = [
   "./",
   "./terminal.html",
